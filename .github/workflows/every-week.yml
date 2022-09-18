@@ -1,0 +1,50 @@
+name: every week
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 실제 스케쥴 작업이 시작될 cron을 등록하면 됩니다.
+    # 크론은 https://crontab.guru/ 여기서 확인하면 좋을 것 같습니다.
+    # 이 크론은 화요일 13시 0분에 실행됩니다.
+    - cron: "0 13 * * 2"
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: env
+        env:
+          USER_ID: ${{ secrets.USER_ID }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          PURCHASE_QUANTITY: ${{ secrets.PURCHASE_QUANTITY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        if: "${{ env.USER_ID != '' && env.USER_PASSWORD != '' }}"
+        run: echo "동행복권 아이디, 비밀번호를 Github Secrets에 입력해주세요."
+
+      - uses: actions/checkout@v3
+
+      - name: Cache node modules
+        id: cache-npm
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          # npm cache files are stored in `~/.npm` on Linux/macOS
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
+        name: List the state of node modules
+        continue-on-error: true
+        run: npm list
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start
+        run: npm start
