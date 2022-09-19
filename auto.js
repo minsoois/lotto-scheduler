@@ -61,7 +61,7 @@ const buyLotto = async (browser) => {
           return element.innerHTML;
         }
       );
-      await bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, notiText);
+      await bot?.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, notiText);
       throw error;
     }
 
@@ -99,7 +99,7 @@ const buyLotto = async (browser) => {
         (el) => el.innerText
       );
       if (errorTitle === "구매한도 알림") {
-        await bot.telegram.sendMessage(
+        await bot?.telegram.sendMessage(
           process.env.TELEGRAM_CHAT_ID,
           "주당 5000원의 구매한도가 초과되었습니다."
         );
@@ -133,7 +133,7 @@ const getUserData = async (browser) => {
     );
   } catch (error) {}
 
-  await bot.telegram.sendMessage(
+  await bot?.telegram.sendMessage(
     process.env.TELEGRAM_CHAT_ID,
     `총 예치금 : ${totalMoney}원\n${
       Number.parseInt(totalMoney.replaceAll(",", ""), 10) < 5000 && accountInfo
