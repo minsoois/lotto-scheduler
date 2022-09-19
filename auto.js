@@ -156,6 +156,7 @@ const run = async () => {
     executablePath: "/usr/local/bin/chromedriver",
     headless: true,
     devtools: false,
+    timeout: 0,
   });
 
   try {
