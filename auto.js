@@ -9,8 +9,6 @@ const hasUserData = process.env.USER_ID && process.env.USER_PASSWORD;
 
 const purchaseQuantity = process.env.PURCHASE_QUANTITY > "5" ? "5" : "1";
 
-console.log("구매수량", purchaseQuantity);
-
 const bot = hasTelegramData
   ? new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
   : null;
@@ -77,7 +75,7 @@ const buyLotto = async (browser) => {
     await buyPage.select(amoundApplySelector, purchaseQuantity);
     await buyPage.click("#btnSelectNum");
 
-    console.log("구매개수 변경");
+    console.log(`${purchaseQuantity}로 구매개수 변경`);
 
     // 구매버튼 클릭
     await buyPage.click("#btnBuy");
