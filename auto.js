@@ -18,6 +18,9 @@ if (bot) {
   process.once("SIGTERM", () => bot.stop("SIGTERM"));
 }
 
+const wait = (time = 1000) =>
+  new Promise((res, rej) => setTimeout(() => res(), time));
+
 const buyLotto = async (browser) => {
   try {
     browser.on("targetcreated", async (target) => {
@@ -78,6 +81,8 @@ const buyLotto = async (browser) => {
       "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
 
     await buyPage.waitForSelector(buyConfirmButtonSelector);
+
+    await wait(2000);
 
     await buyPage.click(buyConfirmButtonSelector);
     await buyPage.waitForSelector("#popReceipt");
