@@ -147,6 +147,7 @@ const run = async () => {
   if (!hasUserData) return;
   const browser = await puppeteer.launch({
     args: ["--no-sandbox"],
+    executablePath: process.env.PUPPETEER_EXEC_PATH,
     headless: true,
     devtools: false,
   });
