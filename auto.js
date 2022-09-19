@@ -146,8 +146,14 @@ const getUserData = async (browser) => {
 const run = async () => {
   if (!hasUserData) return;
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox"],
-    executablePath: process.env.PUPPETEER_EXEC_PATH,
+    args: [
+      "--no-sandbox",
+      "--ignore-certificate-errors",
+      "--disable-setuid-sandbox",
+      "--disable-accelerated-2d-canvas",
+      "--disable-gpu",
+    ],
+    executablePath: "/usr/local/bin/chromedriver",
     headless: true,
     devtools: false,
   });
