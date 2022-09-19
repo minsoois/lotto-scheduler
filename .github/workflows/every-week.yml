@@ -41,8 +41,6 @@ jobs:
         with:
           node-version: 16
 
-      - uses: nanasess/setup-chromedriver@v1
-
       - name: Cache node modules
         id: cache-npm
         uses: actions/cache@v3

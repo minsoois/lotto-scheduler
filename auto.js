@@ -153,10 +153,8 @@ const run = async () => {
       "--disable-accelerated-2d-canvas",
       "--disable-gpu",
     ],
-    executablePath: "/usr/local/bin/chromedriver",
     headless: true,
     devtools: false,
-    timeout: 0,
   });
 
   try {
