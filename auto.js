@@ -82,14 +82,8 @@ const buyLotto = async (browser) => {
 
     await buyPage.waitForSelector(buyConfirmButtonSelector);
 
-    // await wait(2000);
+    await buyPage.$eval(buyConfirmButtonSelector, (element) => element.click());
 
-    const buyConfirmButton = await buyPage.$(buyConfirmButtonSelector);
-
-    await buyConfirmButton.evaluate((h) => {
-      h.click();
-    });
-    // await buyPage.click(buyConfirmButtonSelector);
     await buyPage.waitForSelector("#popReceipt");
 
     try {
