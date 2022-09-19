@@ -9,6 +9,8 @@ const hasUserData = process.env.USER_ID && process.env.USER_PASSWORD;
 
 const purchaseQuantity = process.env.PURCHASE_QUANTITY > "5" ? "5" : "1";
 
+console.log("구매수량", purchaseQuantity);
+
 const bot = hasTelegramData
   ? new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
   : null;
@@ -17,9 +19,6 @@ if (bot) {
   process.once("SIGINT", () => bot.stop("SIGINT"));
   process.once("SIGTERM", () => bot.stop("SIGTERM"));
 }
-
-const wait = (time = 1000) =>
-  new Promise((res, rej) => setTimeout(() => res(), time));
 
 const buyLotto = async (browser) => {
   try {
@@ -48,6 +47,8 @@ const buyLotto = async (browser) => {
     await mainPage.click(".btn_common.lrg.blu");
     await mainPage.waitForNavigation();
 
+    console.log("로그인 완료");
+
     // 로또 구매 페이지를 켬
     const buyPage = await browser.newPage();
     await buyPage.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", {
@@ -68,14 +69,20 @@ const buyLotto = async (browser) => {
       throw error;
     }
 
+    console.log("구매페이지 열림");
+
     const amoundApplySelector = "#amoundApply";
 
     // 구매 개수 변경
     await buyPage.select(amoundApplySelector, purchaseQuantity);
     await buyPage.click("#btnSelectNum");
 
+    console.log("구매개수 변경");
+
     // 구매버튼 클릭
     await buyPage.click("#btnBuy");
+
+    console.log("구매버튼 클릭");
 
     const buyConfirmButtonSelector =
       "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
@@ -83,6 +90,8 @@ const buyLotto = async (browser) => {
     await buyPage.waitForSelector(buyConfirmButtonSelector);
 
     await buyPage.$eval(buyConfirmButtonSelector, (element) => element.click());
+
+    console.log("구매확인 버튼 클릭");
 
     await buyPage.waitForSelector("#popReceipt");
 
@@ -98,6 +107,7 @@ const buyLotto = async (browser) => {
         });
       }
     } catch (error) {
+      console.error(error);
       const errorTitle = await buyPage.$eval(
         "div.box > div.head > h2",
         (el) => el.innerText
