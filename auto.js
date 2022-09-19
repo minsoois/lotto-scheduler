@@ -145,7 +145,11 @@ const getUserData = async (browser) => {
 
 const run = async () => {
   if (!hasUserData) return;
-  const browser = await puppeteer.launch({ headless: true, devtools: false });
+  const browser = await puppeteer.launch({
+    args: ["--no-sandbox"],
+    headless: true,
+    devtools: false,
+  });
 
   try {
     await buyLotto(browser);
