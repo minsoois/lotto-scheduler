@@ -1,26 +1,18 @@
 import * as puppeteer from "puppeteer";
-import { Telegraf } from "telegraf";
-import * as dotenv from "dotenv";
-dotenv.config();
+import config from "./utils/config.js";
+import { createBrowser } from "./utils/browser.js";
+import {
+  hasTelegramBot,
+  NotificationType,
+  sendNotification,
+} from "./utils/notification.js";
 
-const hasTelegramData =
-  process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID;
-const hasUserData = process.env.USER_ID && process.env.USER_PASSWORD;
+const hasUserData = config.userId && config.userPassword;
 
-const purchaseQuantity = process.env.PURCHASE_QUANTITY > "5" ? "5" : "1";
-
-const bot = hasTelegramData
-  ? new Telegraf(process.env.TELEGRAM_BOT_TOKEN)
-  : null;
-
-if (bot) {
-  process.once("SIGINT", () => bot.stop("SIGINT"));
-  process.once("SIGTERM", () => bot.stop("SIGTERM"));
-}
-
-const buyLotto = async (browser) => {
+const buyLotto = async (browser: puppeteer.Browser) => {
+  if (!config.userId || !config.userPassword) return;
   try {
-    browser.on("targetcreated", async (target) => {
+    browser.on("targetcreated", async (target: any) => {
       if (target.type() === "page") {
         const newPage = await target.page();
         const url = newPage.url();
@@ -40,8 +32,8 @@ const buyLotto = async (browser) => {
     );
 
     // 로또 로그인
-    await mainPage.type("#userId", process.env.USER_ID);
-    await mainPage.type("input[type=password]", process.env.USER_PASSWORD);
+    await mainPage.type("#userId", config.userId);
+    await mainPage.type("input[type=password]", config.userPassword);
     await mainPage.click(".btn_common.lrg.blu");
     await mainPage.waitForNavigation();
 
@@ -57,13 +49,15 @@ const buyLotto = async (browser) => {
     try {
       await buyPage.click("#num2");
     } catch (error) {
-      const notiText = await buyPage.$eval(
+      const noticeText = await buyPage.$eval(
         "#popupLayerAlert > div > div.noti > span",
-        (element) => {
-          return element.innerHTML;
-        }
+        (el) => (<HTMLElement>el).innerText
       );
-      await bot?.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, notiText);
+      await sendNotification({
+        type: NotificationType.Message,
+        payload: noticeText,
+        chatId: config.telegramChatId,
+      });
       throw error;
     }
 
@@ -72,10 +66,10 @@ const buyLotto = async (browser) => {
     const amoundApplySelector = "#amoundApply";
 
     // 구매 개수 변경
-    await buyPage.select(amoundApplySelector, purchaseQuantity);
+    await buyPage.select(amoundApplySelector, config.purchaseQuantity + "");
     await buyPage.click("#btnSelectNum");
 
-    console.log(`${purchaseQuantity}로 구매개수 변경`);
+    console.log(`${config.purchaseQuantity}개로 구매개수 변경`);
 
     // 구매버튼 클릭
     await buyPage.click("#btnBuy");
@@ -87,91 +81,90 @@ const buyLotto = async (browser) => {
 
     await buyPage.waitForSelector(buyConfirmButtonSelector);
 
-    await buyPage.$eval(buyConfirmButtonSelector, (element) => element.click());
+    await buyPage.$eval(buyConfirmButtonSelector, (el) =>
+      (<HTMLElement>el).click()
+    );
 
     console.log("구매확인 버튼 클릭");
 
     await buyPage.waitForSelector("#popReceipt");
 
     try {
-      const resultPopup = await buyPage.$("#popReceipt");
+      if (hasTelegramBot) {
+        const resultPopup = await buyPage.$("#popReceipt");
+        if (!resultPopup) throw new Error("구매 후 결과를 캡처할 수 없습니다.");
 
-      if (bot) {
-        const lottoReceipt = await resultPopup.screenshot({
-          encoding: "base64",
-        });
-        await bot.telegram.sendPhoto(process.env.TELEGRAM_CHAT_ID, {
-          source: Buffer.from(lottoReceipt, "base64"),
+        console.log("구매 완료");
+
+        const lottoReceipt = (await resultPopup.screenshot({
+          type: "jpeg",
+        })) as Buffer;
+        if (!lottoReceipt) throw new Error("");
+        await sendNotification({
+          chatId: config.telegramChatId,
+          type: NotificationType.Image,
+          payload: {
+            source: lottoReceipt,
+          },
         });
       }
     } catch (error) {
       console.error(error);
       const errorTitle = await buyPage.$eval(
         "div.box > div.head > h2",
-        (el) => el.innerText
+        (el) => (<HTMLElement>el).innerText
       );
-      if (errorTitle === "구매한도 알림") {
-        await bot?.telegram.sendMessage(
-          process.env.TELEGRAM_CHAT_ID,
-          "주당 5000원의 구매한도가 초과되었습니다."
-        );
-      } else {
-        throw error;
-      }
+      console.log("errorTitle", errorTitle);
     }
   } catch (error) {
     console.error(error);
   }
 };
 
-const getUserData = async (browser) => {
+const getUserData = async (browser: puppeteer.Browser) => {
   if (!browser) return;
-  let accountInfo;
+
+  console.log("유저정보 가져오기 시작");
+
+  let accountInfo: string | null = null;
   const buyPage = await browser.newPage();
   await buyPage.goto("https://dhlottery.co.kr/userSsl.do?method=myPage", {
     waitUntil: "domcontentloaded",
   });
   await buyPage.bringToFront();
 
-  const totalMoney = await buyPage.$eval(
+  const totalMoney: string = await buyPage.$eval(
     "#article > div:nth-child(2) > div > div.box_information > div.box.money > p.total_new > strong",
-    (el) => el.innerText
+    (el) => (<HTMLElement>el).innerText
   );
+
+  console.log(`총 예치금 ${totalMoney}원`);
+
+  if (!totalMoney) return;
 
   try {
     accountInfo = await buyPage.$eval(
       "#article > div:nth-child(2) > div > div.box_information > div.box.money > div.total_account_number > table > tbody > tr:nth-child(1) > td",
-      (el) => el.innerText
+      (el) => (<HTMLElement>el).innerText
     );
   } catch (error) {}
 
-  await bot?.telegram.sendMessage(
-    process.env.TELEGRAM_CHAT_ID,
-    `총 예치금 : ${totalMoney}원\n${
+  console.log(`계좌번호 ${accountInfo}`);
+
+  await sendNotification({
+    type: NotificationType.Message,
+    chatId: config.telegramChatId,
+    payload: `총 예치금 : ${totalMoney}원\n${
       Number.parseInt(totalMoney.replaceAll(",", ""), 10) < 5000 && accountInfo
         ? `예치 계좌번호 : ${accountInfo}`
         : ""
-    }`
-  );
+    }`,
+  });
 };
 
 const run = async () => {
   if (!hasUserData) return;
-  const browser = await puppeteer.launch({
-    args: [
-      "--no-sandbox",
-      "--ignore-certificate-errors",
-      "--disable-setuid-sandbox",
-      "--disable-accelerated-2d-canvas",
-      "--disable-gpu",
-    ],
-    headless: true,
-    devtools: false,
-    defaultViewport: {
-      width: 1920,
-      height: 1080,
-    },
-  });
+  const browser = await createBrowser();
 
   try {
     await buyLotto(browser);
