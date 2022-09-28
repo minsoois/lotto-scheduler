@@ -1,5 +1,5 @@
 import config from "./utils/config.js";
-import { changeUserAgent, createBrowser } from "./utils/browser.js";
+import { createBrowser } from "./utils/browser.js";
 import {
   hasTelegramBot,
   NotificationType,
@@ -13,17 +13,21 @@ const buyLotto = async (browser: Browser) => {
   if (!config.userId || !config.userPassword) return;
 
   browser.on("targetcreated", async (target: any) => {
-    if (target.type() === "page") {
-      const newPage = await target.page();
-      const url = newPage.url();
-      if (url.includes("popup")) {
-        await newPage.close();
+    try {
+      if (target.type() === "page") {
+        const newPage = await target.page();
+        const url = newPage.url();
+        if (url.includes("popup")) {
+          console.log("url", url);
+          setTimeout(async () => {
+            await newPage.close();
+          }, 2000);
+        }
       }
-    }
+    } catch (error) {}
   });
 
   const mainPage = await browser.newPage();
-  await changeUserAgent(mainPage);
 
   await mainPage.goto(
     "https://dhlottery.co.kr/user.do?method=login&returnUrl=",
@@ -31,6 +35,7 @@ const buyLotto = async (browser: Browser) => {
       waitUntil: "domcontentloaded",
     }
   );
+  mainPage.isClosed();
 
   // 로또 로그인
   await mainPage.type("#userId", config.userId);
@@ -42,7 +47,6 @@ const buyLotto = async (browser: Browser) => {
 
   // 로또 구매 페이지를 켬
   const buyPage = await browser.newPage();
-  await changeUserAgent(buyPage);
 
   await buyPage.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", {
     waitUntil: "domcontentloaded",
@@ -66,12 +70,29 @@ const buyLotto = async (browser: Browser) => {
 
   console.log("구매페이지 열림");
 
-  const popupLayerAlertVisible = await buyPage.$eval("#popupLayerAlert", (el) =>
-    el.getAttribute("display")
+  const isAlertVisible = await buyPage.$eval(
+    "#popupLayerAlert",
+    (el) => (<HTMLElement>el).style.display !== "none"
   );
-  console.log("popupLayerAlertVisible", popupLayerAlertVisible);
+  console.log("isAlertVisible", isAlertVisible);
 
-  if (popupLayerAlertVisible) {
+  if (isAlertVisible) {
+    const fullPage = (await buyPage.screenshot({
+      fullPage: true,
+      type: "jpeg",
+    })) as Buffer;
+
+    console.log("alert 캡처 완료");
+
+    if (!fullPage) throw new Error("");
+    await sendNotification({
+      chatId: config.telegramChatId,
+      type: NotificationType.Image,
+      payload: {
+        source: fullPage,
+      },
+    });
+
     await buyPage.$eval("#popupLayerAlert > div > div.btns > input", (el) =>
       (<HTMLElement>el).click()
     );
@@ -90,26 +111,13 @@ const buyLotto = async (browser: Browser) => {
 
   console.log("구매버튼 클릭");
 
-  const fullPage = (await buyPage.screenshot({
-    fullPage: true,
-    type: "jpeg",
-  })) as Buffer;
-
-  console.log("반복 오류 화면 캡처");
-
-  if (!fullPage) throw new Error("");
-  await sendNotification({
-    chatId: config.telegramChatId,
-    type: NotificationType.Image,
-    payload: {
-      source: fullPage,
-    },
-  });
-
   const buyConfirmButtonSelector =
     "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
 
-  await buyPage.waitForSelector(buyConfirmButtonSelector, { visible: true });
+  await buyPage.waitForSelector(buyConfirmButtonSelector, {
+    visible: true,
+    timeout: 2000,
+  });
 
   await buyPage.$eval(buyConfirmButtonSelector, (el) =>
     (<HTMLElement>el).click()
@@ -117,12 +125,12 @@ const buyLotto = async (browser: Browser) => {
 
   console.log("구매확인 버튼 클릭");
 
-  await buyPage.waitForSelector("#popReceipt", {
-    visible: true,
-    timeout: 10000,
-  });
-
   try {
+    await buyPage.waitForSelector("#popReceipt", {
+      visible: true,
+      timeout: 5000,
+    });
+
     if (hasTelegramBot) {
       const resultPopup = await buyPage.$("#popReceipt");
       if (!resultPopup) throw new Error("구매 후 결과를 캡처할 수 없습니다.");
@@ -146,12 +154,18 @@ const buyLotto = async (browser: Browser) => {
     }
   } catch (error) {
     console.error(error);
-    const limitNotice = await buyPage.$eval("recommend720Plus", (el) =>
-      (<HTMLElement>el).getAttribute("display")
+    const isLimit = await buyPage.$eval(
+      "#recommend720Plus",
+      (el) => (<HTMLElement>el).style.display !== "none"
     );
-    console.log("limitNotice", limitNotice);
-    if (limitNotice) {
-      console.log("구매 한도 초과");
+    console.log("isLimit", isLimit);
+    if (isLimit) {
+      console.log("주간 구매 한도 초과");
+      sendNotification({
+        type: NotificationType.Message,
+        chatId: config.telegramChatId,
+        payload: "구매 한도가 초가되었습니다.",
+      });
     }
   }
 };
@@ -163,7 +177,6 @@ const getUserData = async (browser: Browser) => {
 
   let accountInfo: string | null = null;
   const myPage = await browser.newPage();
-  await changeUserAgent(myPage);
 
   await myPage.goto("https://dhlottery.co.kr/userSsl.do?method=myPage", {
     waitUntil: "domcontentloaded",
@@ -202,8 +215,6 @@ const getUserData = async (browser: Browser) => {
 const run = async () => {
   if (!hasUserData) return;
   const browser = await createBrowser();
-
-  console.log(`기본 UserAgent : ${await browser.userAgent()}`);
 
   try {
     await buyLotto(browser);
