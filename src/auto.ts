@@ -66,6 +66,17 @@ const buyLotto = async (browser: puppeteer.Browser) => {
 
   console.log("구매페이지 열림");
 
+  const popupLayerAlertVisible = await buyPage.$eval("#popupLayerAlert", (el) =>
+    el.getAttribute("display")
+  );
+  console.log("popupLayerAlertVisible", popupLayerAlertVisible);
+
+  if (popupLayerAlertVisible) {
+    await buyPage.$eval("#popupLayerAlert > div > div.btns > input", (el) =>
+      (<HTMLElement>el).click()
+    );
+  }
+
   const amoundApplySelector = "#amoundApply";
 
   // 구매 개수 변경
@@ -78,6 +89,26 @@ const buyLotto = async (browser: puppeteer.Browser) => {
   await buyPage.click("#btnBuy");
 
   console.log("구매버튼 클릭");
+
+  await buyPage.waitForFunction(
+    "navigator.platform && console.log('platform', navigator.platform)"
+  );
+
+  const fullPage = (await buyPage.screenshot({
+    fullPage: true,
+    type: "jpeg",
+  })) as Buffer;
+
+  console.log("반복 오류 화면 캡처");
+
+  if (!fullPage) throw new Error("");
+  await sendNotification({
+    chatId: config.telegramChatId,
+    type: NotificationType.Image,
+    payload: {
+      source: fullPage,
+    },
+  });
 
   const buyConfirmButtonSelector =
     "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
