@@ -46,6 +46,6 @@ export const createBrowser = () =>
       // "--disable-gpu",
       ...minimalArgs,
     ],
-    headless: false,
-    devtools: true,
+    headless: true,
+    devtools: false,
   });
