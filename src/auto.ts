@@ -1,6 +1,6 @@
 import * as puppeteer from "puppeteer";
 import config from "./utils/config.js";
-import { createBrowser } from "./utils/browser.js";
+import { createBrowser, DEFAULT_USER_AGENT } from "./utils/browser.js";
 import {
   hasTelegramBot,
   NotificationType,
@@ -11,113 +11,120 @@ const hasUserData = config.userId && config.userPassword;
 
 const buyLotto = async (browser: puppeteer.Browser) => {
   if (!config.userId || !config.userPassword) return;
-  try {
-    browser.on("targetcreated", async (target: any) => {
-      if (target.type() === "page") {
-        const newPage = await target.page();
-        const url = newPage.url();
-        if (url.includes("popup")) {
-          await newPage.close();
-        }
+
+  browser.on("targetcreated", async (target: any) => {
+    if (target.type() === "page") {
+      const newPage = await target.page();
+      const url = newPage.url();
+      if (url.includes("popup")) {
+        await newPage.close();
       }
-    });
-
-    const mainPage = await browser.newPage();
-
-    await mainPage.goto(
-      "https://dhlottery.co.kr/user.do?method=login&returnUrl=",
-      {
-        waitUntil: "domcontentloaded",
-      }
-    );
-
-    // 로또 로그인
-    await mainPage.type("#userId", config.userId);
-    await mainPage.type("input[type=password]", config.userPassword);
-    await mainPage.click(".btn_common.lrg.blu");
-    await mainPage.waitForNavigation();
-
-    console.log("로그인 완료");
-
-    // 로또 구매 페이지를 켬
-    const buyPage = await browser.newPage();
-    await buyPage.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", {
-      waitUntil: "domcontentloaded",
-    });
-    await buyPage.bringToFront();
-
-    try {
-      await buyPage.click("#num2");
-    } catch (error) {
-      const noticeText = await buyPage.$eval(
-        "#popupLayerAlert > div > div.noti > span",
-        (el) => (<HTMLElement>el).innerText
-      );
-      await sendNotification({
-        type: NotificationType.Message,
-        payload: noticeText,
-        chatId: config.telegramChatId,
-      });
-      throw error;
     }
+  });
 
-    console.log("구매페이지 열림");
+  const mainPage = await browser.newPage();
+  await mainPage.setUserAgent(DEFAULT_USER_AGENT);
 
-    const amoundApplySelector = "#amoundApply";
+  await mainPage.goto(
+    "https://dhlottery.co.kr/user.do?method=login&returnUrl=",
+    {
+      waitUntil: "domcontentloaded",
+    }
+  );
 
-    // 구매 개수 변경
-    await buyPage.select(amoundApplySelector, config.purchaseQuantity + "");
-    await buyPage.click("#btnSelectNum");
+  // 로또 로그인
+  await mainPage.type("#userId", config.userId);
+  await mainPage.type("input[type=password]", config.userPassword);
+  await mainPage.click(".btn_common.lrg.blu");
+  await mainPage.waitForNavigation();
 
-    console.log(`${config.purchaseQuantity}개로 구매개수 변경`);
+  console.log("로그인 완료");
 
-    // 구매버튼 클릭
-    await buyPage.click("#btnBuy");
+  // 로또 구매 페이지를 켬
+  const buyPage = await browser.newPage();
+  await buyPage.setUserAgent(DEFAULT_USER_AGENT);
+  await buyPage.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", {
+    waitUntil: "domcontentloaded",
+  });
+  await buyPage.bringToFront();
 
-    console.log("구매버튼 클릭");
-
-    const buyConfirmButtonSelector =
-      "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
-
-    await buyPage.waitForSelector(buyConfirmButtonSelector);
-
-    await buyPage.$eval(buyConfirmButtonSelector, (el) =>
-      (<HTMLElement>el).click()
+  try {
+    await buyPage.click("#num2");
+  } catch (error) {
+    const noticeText = await buyPage.$eval(
+      "#popupLayerAlert > div > div.noti > span",
+      (el) => (<HTMLElement>el).innerText
     );
+    await sendNotification({
+      type: NotificationType.Message,
+      payload: noticeText,
+      chatId: config.telegramChatId,
+    });
+    throw error;
+  }
 
-    console.log("구매확인 버튼 클릭");
+  console.log("구매페이지 열림");
 
-    await buyPage.waitForSelector("#popReceipt");
+  const amoundApplySelector = "#amoundApply";
 
-    try {
-      if (hasTelegramBot) {
-        const resultPopup = await buyPage.$("#popReceipt");
-        if (!resultPopup) throw new Error("구매 후 결과를 캡처할 수 없습니다.");
+  // 구매 개수 변경
+  await buyPage.select(amoundApplySelector, config.purchaseQuantity + "");
+  await buyPage.click("#btnSelectNum");
 
-        console.log("구매 완료");
+  console.log(`${config.purchaseQuantity}개로 구매개수 변경`);
 
-        const lottoReceipt = (await resultPopup.screenshot({
-          type: "jpeg",
-        })) as Buffer;
-        if (!lottoReceipt) throw new Error("");
-        await sendNotification({
-          chatId: config.telegramChatId,
-          type: NotificationType.Image,
-          payload: {
-            source: lottoReceipt,
-          },
-        });
-      }
-    } catch (error) {
-      console.error(error);
-      const errorTitle = await buyPage.$eval(
-        "div.box > div.head > h2",
-        (el) => (<HTMLElement>el).innerText
-      );
-      console.log("errorTitle", errorTitle);
+  // 구매버튼 클릭
+  await buyPage.click("#btnBuy");
+
+  console.log("구매버튼 클릭");
+
+  const buyConfirmButtonSelector =
+    "#popupLayerConfirm > div > div.btns > input:nth-child(1)";
+
+  await buyPage.waitForSelector(buyConfirmButtonSelector, { visible: true });
+
+  await buyPage.$eval(buyConfirmButtonSelector, (el) =>
+    (<HTMLElement>el).click()
+  );
+
+  console.log("구매확인 버튼 클릭");
+
+  await buyPage.waitForSelector("#popReceipt", {
+    visible: true,
+    timeout: 10000,
+  });
+
+  try {
+    if (hasTelegramBot) {
+      const resultPopup = await buyPage.$("#popReceipt");
+      if (!resultPopup) throw new Error("구매 후 결과를 캡처할 수 없습니다.");
+
+      console.log("구매 완료");
+
+      const lottoReceipt = (await resultPopup.screenshot({
+        type: "jpeg",
+      })) as Buffer;
+
+      console.log("캡처 완료");
+
+      if (!lottoReceipt) throw new Error("");
+      await sendNotification({
+        chatId: config.telegramChatId,
+        type: NotificationType.Image,
+        payload: {
+          source: lottoReceipt,
+        },
+      });
     }
   } catch (error) {
     console.error(error);
+    const limitNotice = await buyPage.$eval("recommend720Plus", (el) =>
+      (<HTMLElement>el).getAttribute("display")
+    );
+    console.log("limitNotice", limitNotice);
+    if (limitNotice) {
+      console.log("구매 한도 초과");
+    }
   }
 };
 
@@ -127,13 +134,14 @@ const getUserData = async (browser: puppeteer.Browser) => {
   console.log("유저정보 가져오기 시작");
 
   let accountInfo: string | null = null;
-  const buyPage = await browser.newPage();
-  await buyPage.goto("https://dhlottery.co.kr/userSsl.do?method=myPage", {
+  const myPage = await browser.newPage();
+  await myPage.setUserAgent(DEFAULT_USER_AGENT);
+  await myPage.goto("https://dhlottery.co.kr/userSsl.do?method=myPage", {
     waitUntil: "domcontentloaded",
   });
-  await buyPage.bringToFront();
+  await myPage.bringToFront();
 
-  const totalMoney: string = await buyPage.$eval(
+  const totalMoney: string = await myPage.$eval(
     "#article > div:nth-child(2) > div > div.box_information > div.box.money > p.total_new > strong",
     (el) => (<HTMLElement>el).innerText
   );
@@ -143,7 +151,7 @@ const getUserData = async (browser: puppeteer.Browser) => {
   if (!totalMoney) return;
 
   try {
-    accountInfo = await buyPage.$eval(
+    accountInfo = await myPage.$eval(
       "#article > div:nth-child(2) > div > div.box_information > div.box.money > div.total_account_number > table > tbody > tr:nth-child(1) > td",
       (el) => (<HTMLElement>el).innerText
     );
@@ -165,6 +173,8 @@ const getUserData = async (browser: puppeteer.Browser) => {
 const run = async () => {
   if (!hasUserData) return;
   const browser = await createBrowser();
+
+  console.log(`기본 UserAgent : ${await browser.userAgent()}`);
 
   try {
     await buyLotto(browser);
