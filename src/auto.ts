@@ -1,6 +1,6 @@
 import * as puppeteer from "puppeteer";
 import config from "./utils/config.js";
-import { createBrowser, DEFAULT_USER_AGENT } from "./utils/browser.js";
+import { changeUserAgent, createBrowser } from "./utils/browser.js";
 import {
   hasTelegramBot,
   NotificationType,
@@ -23,7 +23,7 @@ const buyLotto = async (browser: puppeteer.Browser) => {
   });
 
   const mainPage = await browser.newPage();
-  await mainPage.setUserAgent(DEFAULT_USER_AGENT);
+  await changeUserAgent(mainPage);
 
   await mainPage.goto(
     "https://dhlottery.co.kr/user.do?method=login&returnUrl=",
@@ -42,7 +42,8 @@ const buyLotto = async (browser: puppeteer.Browser) => {
 
   // 로또 구매 페이지를 켬
   const buyPage = await browser.newPage();
-  await buyPage.setUserAgent(DEFAULT_USER_AGENT);
+  await changeUserAgent(buyPage);
+
   await buyPage.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", {
     waitUntil: "domcontentloaded",
   });
@@ -135,7 +136,8 @@ const getUserData = async (browser: puppeteer.Browser) => {
 
   let accountInfo: string | null = null;
   const myPage = await browser.newPage();
-  await myPage.setUserAgent(DEFAULT_USER_AGENT);
+  await changeUserAgent(myPage);
+
   await myPage.goto("https://dhlottery.co.kr/userSsl.do?method=myPage", {
     waitUntil: "domcontentloaded",
   });
