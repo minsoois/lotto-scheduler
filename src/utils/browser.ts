@@ -47,6 +47,6 @@ export const createBrowser = () =>
       // "--disable-gpu",
       ...minimalArgs,
     ],
-    headless: false,
-    devtools: false,
+    headless: process.env.NODE_ENV === "production",
+    devtools: process.env.NODE_ENV !== "production",
   });
