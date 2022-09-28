@@ -9,7 +9,7 @@
     "preserveConstEnums": true,
     "outDir": "./dist",
     "strict": true,
-    "allowSyntheticDefaultImports": false,
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "allowJs": true
   },

@@ -1,15 +1,17 @@
-import * as puppeteer from "puppeteer";
+import { Page } from "puppeteer";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-const DEFAULT_USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36";
+// const DEFAULT_USER_AGENT =
+//   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36";
 
-const defaultUserAgentExtra = {
-  platform: "macOS",
-  platformVersion: "12.6.0",
-  architecture: "arm",
-  model: "",
-  mobile: false,
-};
+// const defaultUserAgentExtra = {
+//   platform: "macOS",
+//   platformVersion: "12.6.0",
+//   architecture: "arm",
+//   model: "",
+//   mobile: false,
+// };
 
 const minimalArgs = [
   "--autoplay-policy=user-gesture-required",
@@ -50,7 +52,7 @@ const minimalArgs = [
 ];
 
 export const createBrowser = () =>
-  puppeteer.launch({
+  puppeteer.use(StealthPlugin()).launch({
     args: [
       "--ignore-certificate-errors",
       // "--disable-accelerated-2d-canvas",
@@ -61,6 +63,6 @@ export const createBrowser = () =>
     devtools: false,
   });
 
-export const changeUserAgent = async (page: puppeteer.Page) => {
-  await page.setUserAgent(DEFAULT_USER_AGENT, defaultUserAgentExtra);
+export const changeUserAgent = async (page: Page) => {
+  // await page.setUserAgent(DEFAULT_USER_AGENT, defaultUserAgentExtra);
 };

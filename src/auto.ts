@@ -1,4 +1,3 @@
-import * as puppeteer from "puppeteer";
 import config from "./utils/config.js";
 import { changeUserAgent, createBrowser } from "./utils/browser.js";
 import {
@@ -6,10 +5,11 @@ import {
   NotificationType,
   sendNotification,
 } from "./utils/notification.js";
+import { Browser } from "puppeteer";
 
 const hasUserData = config.userId && config.userPassword;
 
-const buyLotto = async (browser: puppeteer.Browser) => {
+const buyLotto = async (browser: Browser) => {
   if (!config.userId || !config.userPassword) return;
 
   browser.on("targetcreated", async (target: any) => {
@@ -156,7 +156,7 @@ const buyLotto = async (browser: puppeteer.Browser) => {
   }
 };
 
-const getUserData = async (browser: puppeteer.Browser) => {
+const getUserData = async (browser: Browser) => {
   if (!browser) return;
 
   console.log("유저정보 가져오기 시작");
