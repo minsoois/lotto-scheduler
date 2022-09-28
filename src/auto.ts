@@ -90,10 +90,6 @@ const buyLotto = async (browser: puppeteer.Browser) => {
 
   console.log("구매버튼 클릭");
 
-  await buyPage.waitForFunction(
-    "navigator.platform && console.log('platform', navigator.platform)"
-  );
-
   const fullPage = (await buyPage.screenshot({
     fullPage: true,
     type: "jpeg",
